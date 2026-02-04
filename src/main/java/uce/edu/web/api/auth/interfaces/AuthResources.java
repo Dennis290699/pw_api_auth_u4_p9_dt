@@ -3,42 +3,48 @@ package uce.edu.web.api.auth.interfaces;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
 
 import java.time.Instant;
 import java.util.Set;
 
+@Path("/auth")
 public class AuthResources {
+
+    @jakarta.inject.Inject
+    uce.edu.web.api.auth.repository.UsuarioRepository usuarioRepository;
 
     @GET
     @Path("/token")
+    @Produces(MediaType.APPLICATION_JSON)
     public TokenResponse token(
             @QueryParam("user") @DefaultValue("estudiante1") String user,
             @QueryParam("password") @DefaultValue("estudiante1") String password) {
 
-        //aqui es donde se compara el password y usuario contra la base
-        //TAREA
-        boolean ok = true;
-        String role= "admin";
-        //crear tabla usuario, clave primaria, password, y rol
-        if (ok) {
+        uce.edu.web.api.auth.model.Usuario usuario = usuarioRepository.findByUsuarioAndPassword(user, password);
+
+        if (usuario != null) {
             String issuer = "matricula-auth";
             long ttl = 3600;
 
             Instant now = Instant.now();
             Instant exp = now.plusSeconds(ttl);
 
+            String role = usuario.rol.toLowerCase(); // "Admin" -> "admin" (necesario para la API)
+
             String jwt = Jwt.issuer(issuer)
                     .subject(user)
-                    .groups(Set.of(role))     // roles: user / admin
+                    .groups(Set.of(role))
                     .issuedAt(now)
                     .expiresAt(exp)
                     .sign();
 
             return new TokenResponse(jwt, exp.getEpochSecond(), role);
-        }else {
-            return null;
+        } else {
+            return null; // Or throw WebApplicationException(401)
         }
 
     }
